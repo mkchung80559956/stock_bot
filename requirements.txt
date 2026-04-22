@@ -1,5 +1,5 @@
 pandas
-https://github.com/twopirllc/pandas-ta/archive/master.zip
+pandas-ta
 yfinance
 python-telegram-bot
 numpy
