@@ -9,6 +9,7 @@ TOKEN = os.getenv("TELEGRAM_TOKEN")
 RAW_IDS = os.getenv("TELEGRAM_CHAT_ID", "")
 USER_MAP = {i.split(":")[0].strip(): i.split(":")[1].strip() for i in RAW_IDS.split(",") if ":" in i}
 ALLOWED_IDS = list(USER_MAP.keys())
+RAW_WATCHLIST = os.getenv("WATCHLIST", "2330.TW")
 WATCHLIST = [s.strip() for s in os.getenv("WATCHLIST", "").split(",") if s.strip()]
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
