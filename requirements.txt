@@ -1,0 +1,8 @@
+pandas
+pandas_ta
+yfinance
+python-telegram-bot --upgrade
+numpy
+aiocron
+matplotlib
+mplfinance
