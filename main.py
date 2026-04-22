@@ -2,11 +2,17 @@ import os
 import sys
 import asyncio
 from telegram.ext import ApplicationBuilder, MessageHandler, filters
+TOKEN = os.getenv("TELEGRAM_TOKEN")
+RAW_IDS = os.getenv("TELEGRAM_CHAT_ID", "")
 
 # ... (保留你之前的 handle_message 和 auto_scan 函數) ...
 
 if __name__ == '__main__':
     # 1. 建立應用程式
+    if not TOKEN:
+        print("❌ 錯誤：找不到 TELEGRAM_TOKEN 環境變數")
+        exit(1)
+
     app = ApplicationBuilder().token(TOKEN).build()
     
     # 2. 註冊訊息處理器 (回覆代號用)
