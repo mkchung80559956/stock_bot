@@ -1,7 +1,7 @@
 pandas
-pandas-ta
+pandas_ta
 yfinance
-python-telegram-bot
+python-telegram-bot --upgrade
 numpy
 aiocron
 matplotlib
