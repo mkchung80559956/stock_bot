@@ -1,0 +1,33 @@
+name: Sentinel Pro Daily Scan
+
+on:
+  schedule:
+    # 這裡設定 UTC 時間 06:40 (等於台灣下午 14:40)
+    - cron: '40 6 * * 1-5' 
+  workflow_dispatch: # 讓你可以隨時手動點擊按鈕執行測試
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Sentinel Scan
+        env:
+          # 這裡就是把 GitHub Secrets 注入到程式的環境變數中
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          WATCHLIST: ${{ secrets.WATCHLIST }}
+        run: python main.py
