@@ -1,46 +1,30 @@
 import os
-import aiocron
-from telegram import Update
-from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
-from sentinel_engine import get_pro_analysis
+import sys
+import asyncio
+from telegram.ext import ApplicationBuilder, MessageHandler, filters
 
-# 從變數讀取 (絕對不要寫死在程式碼)
-TOKEN = os.getenv("TELEGRAM_TOKEN")
-RAW_IDS = os.getenv("TELEGRAM_CHAT_ID", "")
-USER_MAP = {i.split(":")[0].strip(): i.split(":")[1].strip() for i in RAW_IDS.split(",") if ":" in i}
-ALLOWED_IDS = list(USER_MAP.keys())
-RAW_WATCHLIST = os.getenv("WATCHLIST", "2330.TW")
-WATCHLIST = [s.strip() for s in os.getenv("WATCHLIST", "").split(",") if s.strip()]
-
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    cid = str(update.effective_chat.id)
-    if cid not in ALLOWED_IDS: return
-    
-    text = update.message.text.strip().upper()
-    symbol = f"{text}.TW" if text.isdigit() else text
-    res = get_pro_analysis(symbol)
-    
-    if "error" in res:
-        await update.message.reply_text(f"❌ {res['error']}")
-    else:
-        user_name = USER_MAP.get(cid, "老友")
-        caption = (f"👋 {user_name}，決策建議如下：\n"
-                   f"🎯 {res['symbol']} (${res['price']})\n勝率：{res['win_rate']} | 分數：{res['score']}\n"
-                   f"⚖️ 建議比重：{res['weight']}\n🎬 行動：{res['action']}\n"
-                   f"🛑 停損：{res['stop']} | 💎 停利：{res['tp']}")
-        await context.bot.send_photo(chat_id=cid, photo=res['plot'], caption=caption)
-
-@aiocron.crontab('40 06 * * 1-5')
-async def daily_push():
-    from telegram import Bot
-    bot = Bot(TOKEN)
-    for s in WATCHLIST:
-        data = get_pro_analysis(s)
-        if "error" not in data and int(data['score'][0]) >= 3:
-            for cid in ALLOWED_IDS:
-                await bot.send_photo(chat_id=cid, photo=data['plot'], caption=f"🔔 觸發高分共振：{s}")
+# ... (保留你之前的 handle_message 和 auto_scan 函數) ...
 
 if __name__ == '__main__':
+    # 1. 建立應用程式
     app = ApplicationBuilder().token(TOKEN).build()
+    
+    # 2. 註冊訊息處理器 (回覆代號用)
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
-    app.run_polling()
+
+    # 3. 環境偵測與執行
+    # 判斷是否為 GitHub Actions 環境
+    is_github_action = os.getenv("GITHUB_ACTIONS") == "true"
+
+    if is_github_action:
+        print("🚀 偵測到 GitHub Actions 環境：執行一次性定時掃描任務...")
+        # 建立一個新的事件迴圈來跑一次性推播
+        loop = asyncio.get_event_loop()
+        # 這裡執行你原本定義的 auto_scan 函數內容
+        loop.run_until_complete(auto_scan()) 
+        print("✅ 掃描任務已完成，程式正常退出。")
+        # 這裡不跑 run_polling()，所以不會有 Conflict 報錯
+    else:
+        print("✅ 偵測到常駐環境：啟動 Polling 模式...")
+        # 只有在非 Actions 環境下才啟動監聽，防止 Conflict
+        app.run_polling()
