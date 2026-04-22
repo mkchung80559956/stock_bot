@@ -1,9 +1,13 @@
+import os
 import yfinance as yf
 import pandas as pd
 import pandas_ta as ta
 import numpy as np
 import mplfinance as mpf
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import mplfinance as mpf
 from datetime import datetime, timedelta
 import io
 
