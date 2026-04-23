@@ -9,28 +9,27 @@ import mplfinance as mpf
 from datetime import datetime, timedelta
 import io
 
+import yfinance as yf
+import pandas as pd
+
 def get_pro_analysis(symbol):
     try:
-        # 1. 核心修正：使用 auto_adjust 並確保 proxy/headers 正常
+        # 1. 核心修復：使用 auto_adjust=True 並處理最近 yfinance 的結構變化
         df = yf.download(symbol, period="2y", interval="1d", progress=False, auto_adjust=True)
-        
-        # 2. 處理 yf 0.2.50+ 版本的 MultiIndex 問題（這是最常見的報錯原因）
+
+        # 2. 【最重要】處理 MultiIndex 欄位問題 (這是導致抓不到 Close 的主因)
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.get_level_values(0)
             
-        # 3. 欄位名稱格式化 (確保 Close, High, Low 首字母大寫)
+        # 3. 欄位名稱標準化
         df.columns = [str(c).title() for c in df.columns]
 
+        # 如果 df 是空的，代表真的沒抓到
         if df.empty or len(df) < 10:
-            # 如果抓不到，嘗試幫它自動加上市場代碼（針對懶人輸入）
-            if ".TW" not in symbol.upper() and symbol.isdigit():
-                return get_pro_analysis(f"{symbol}.TW")
-            return {"error": f"代號 `{symbol}` 抓取失敗，Yahoo 伺服器暫無回應。"}
+            return {"error": f"Yahoo 伺服器目前無法提供 {symbol} 的數據"}
 
-        # ... 接著跑你原本的指標計算 ...
-
-
-
+        # ... 其餘計算邏輯 ...
+        
 
         # 1. CCI 計算 (對標台股軟體公式)
         df['TP'] = (df['High'] + df['Low'] + df['Close']) / 3
