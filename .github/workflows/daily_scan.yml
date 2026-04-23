@@ -1,0 +1,28 @@
+name: Sentinel Pro Daily Scan
+
+on:
+  workflow_dispatch: # 👈 關鍵：這讓你能在網頁上手動點擊執行
+  schedule:
+    - cron: '40 6 * * 1-5' # 台灣時間下午 14:40 (UTC 6:40)
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          pip install yfinance pandas numpy matplotlib mplfinance python-telegram-bot
+
+      - name: Run Sentinel Scan
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python main.py # 👈 確保你的 main.py 裡有執行分析的邏輯
