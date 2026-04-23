@@ -41,8 +41,7 @@ def get_pro_analysis(symbol):
         # 💡 這行會在 GitHub 日誌印出具體哪裡錯了
         print(f"💥 {symbol} 分析過程發生崩潰: {str(e)}")
         return {"error": f"程式內部錯誤: {str(e)}"}
-        # ... 其餘計算邏輯 ...
-        
+       
 
         # 1. CCI 計算 (對標台股軟體公式)
         df['TP'] = (df['High'] + df['Low'] + df['Close']) / 3
