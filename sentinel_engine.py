@@ -1,37 +1,23 @@
 import os
-import pandas as pd
 import requests
+import pandas as pd
 
 def get_pro_analysis(symbol):
     token = os.getenv("FINMIND_TOKEN")
-    
-    # 處理台股代號格式 (例如把 2330.TW 轉為 2330)
-    stock_id = symbol.replace(".TW", "").replace(".tw", "")
+    stock_id = symbol.replace(".TW", "").replace(".tw", "") # 2330.TW -> 2330
     
     url = "https://api.finmindtrade.com/api/v4/data"
-    parameter = {
+    params = {
         "dataset": "TaiwanStockPrice",
         "data_id": stock_id,
-        "start_date": "2024-01-01", # 抓取足夠長的時間
+        "start_date": "2024-01-01",
         "token": token,
     }
     
-    try:
-        r = requests.get(url, params=parameter)
-        data = r.json()
-        if data["msg"] != "success":
-            return {"error": "FinMind 讀取失敗"}
-            
-        df = pd.DataFrame(data["data"])
-        df = df.rename(columns={
-            "date": "Date",
-            "open": "Open",
-            "max": "High",
-            "min": "Low",
-            "close": "Close",
-            "trading_volume": "Volume"
-        })
-        df.set_index("Date", inplace=True)
+    # 這裡會從 FinMind 伺服器直接拿資料，不再經過 Yahoo Finance
+    res = requests.get(url, params=params)
+    data = res.json()
+    # ... 後續轉換 df 與繪圖邏輯 ...
         
         # 💡 計算邏輯與繪圖邏輯保持不變...
         
