@@ -11,26 +11,31 @@ import io
 
 def get_pro_analysis(symbol):
     try:
-        # 1. 直接抓取數據
+        # 1. 抓取數據
         df = yf.download(symbol, period="2y", interval="1d", progress=False)
-        
-        # 2. 【核心修復】處理 yfinance 的多重索引 Bug
-        # 確保 columns 只有一層 (Close, Open...)，而不是 (Close, 2330.TW)
-        if isinstance(df.columns, pd.MultiIndex):
-            df.columns = df.columns.get_level_values(0)
-            
-        # 3. 檢查數據是否真的存在
-        if df.empty or len(df) < 20: # 至少要有數據
-            print(f"DEBUG: {symbol} 資料抓取為空")
-            return {"error": f"代號 `{symbol}` 查無資料，請確認後再試。"}
 
-        # 4. 數據清理 (移除 NaN)
+        # 2. 【超級補丁】針對 yf 0.2.40+ 版本的結構修正
+        if isinstance(df.columns, pd.MultiIndex):
+            # 如果是多重索引，只保留第一層標籤（Open, Close...）
+            df.columns = df.columns.get_level_values(0)
+        
+        # 3. 強制統一欄位名稱（將可能的小寫或空格轉為標準格式）
+        df.columns = [c.capitalize() for c in df.columns]
+
+        # 4. 檢查數據是否為空
+        if df.empty or len(df) < 50:
+            return {"error": f"代號 `{symbol}` 抓取失敗。日誌：數據長度 {len(df)}"}
+
+        # 5. 處理數據類型（確保是 float 而非 Series）
+        # 有時候 yf 會噴出奇怪的結構，這裡強制轉型
+        for col in ['Open', 'High', 'Low', 'Close', 'Volume']:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+
+        # 6. 移除所有包含 NaN 的行
         df = df.dropna()
 
-        # 5. 指標計算 (保持你原本的代碼...)
-        # --- A. 指標精算 ---
-        df['TP'] = (df['High'] + df['Low'] + df['Close']) / 3
-        # ... 後面接你原本的計算邏輯 ...
+        # --- 以下繼續你原本的指標計算 (指標計算部分不需要大改) ---
+
 
         # 1. CCI 計算 (對標台股軟體公式)
         df['TP'] = (df['High'] + df['Low'] + df['Close']) / 3
