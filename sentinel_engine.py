@@ -1,28 +1,53 @@
 import os
 import requests
 import pandas as pd
+import io
+import matplotlib.pyplot as plt
 
 def get_pro_analysis(symbol):
+    print(f"🔍 DEBUG: 開始處理 {symbol}")
     token = os.getenv("FINMIND_TOKEN")
-    stock_id = symbol.replace(".TW", "").replace(".tw", "") # 2330.TW -> 2330
     
-    url = "https://api.finmindtrade.com/api/v4/data"
-    params = {
-        "dataset": "TaiwanStockPrice",
-        "data_id": stock_id,
-        "start_date": "2024-01-01",
-        "token": token,
-    }
+    # 1. 處理代號：FinMind 台股只需要數字 (2330.TW -> 2330)
+    stock_id = symbol.replace(".TW", "").replace(".tw", "")
     
-    # 這裡會從 FinMind 伺服器直接拿資料，不再經過 Yahoo Finance
-    res = requests.get(url, params=params)
-    data = res.json()
-    # ... 後續轉換 df 與繪圖邏輯 ...
+    try:
+        # 2. 呼叫 FinMind API
+        url = "https://api.finmindtrade.com/api/v4/data"
+        params = {
+            "dataset": "TaiwanStockPrice",
+            "data_id": stock_id,
+            "start_date": "2024-01-01",
+            "token": token,
+        }
         
-        # 💡 計算邏輯與繪圖邏輯保持不變...
+        print(f"📡 DEBUG: 正在請求 FinMind API...")
+        res = requests.get(url, params=params, timeout=15)
+        data = res.json()
         
-    except Exception as e:
-        return {"error": f"數據源錯誤: {str(e)}"}
+        if data.get("msg") != "success":
+            print(f"❌ DEBUG: API 回傳失敗: {data.get('msg')}")
+            return {"error": f"API 錯誤: {data.get('msg')}"}
+            
+        # 3. 轉換為 DataFrame
+        df = pd.DataFrame(data["data"])
+        if df.empty:
+            print(f"⚠️ DEBUG: {symbol} 沒抓到資料")
+            return {"error": "找不到股票數據"}
+
+        # 4. 欄位轉換（必須符合你原本指標計算的名稱）
+        df = df.rename(columns={
+            "date": "Date",
+            "open": "Open",
+            "max": "High",
+            "min": "Low",
+            "close": "Close",
+            "trading_volume": "Volume"
+        })
+        df["Date"] = pd.to_datetime(df["Date"])
+        df.set_index("Date", inplace=True)
+        
+        print(f"✅ DEBUG: 數據轉換成功，共 {len(df)} 筆資料")
        
 
         # 1. CCI 計算 (對標台股軟體公式)
