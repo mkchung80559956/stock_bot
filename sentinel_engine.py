@@ -1,61 +1,46 @@
-import os
 import yfinance as yf
 import pandas as pd
-import time
-import numpy as np
-import matplotlib
-matplotlib.use('Agg') # 👈 關鍵：防止雲端環境報錯
-import matplotlib.pyplot as plt
-import mplfinance as mpf
-from datetime import datetime, timedelta
 import io
 
-import yfinance as yf
-import pandas as pd
-
 def get_pro_analysis(symbol):
-    print(f"DEBUG: 開始下載 {symbol}...")
     try:
-        # 1. 使用 Ticker 下載，並設定較短的超時，避免卡死
+        # 1. 下載資料（使用 Ticker 模式更穩定）
         ticker = yf.Ticker(symbol)
         df = ticker.history(period="2y", interval="1d", auto_adjust=True)
 
-        # 2. 檢查是否真的有拿到資料
-        if df is None or df.empty or len(df) < 20:
-            print(f"DEBUG: {symbol} 數據為空或長度不足")
-            return {"error": f"Yahoo 暫時無法提供 {symbol} 的數據，請稍後再試"}
-
-        # 3. 處理 yfinance 的多重索引（這是最常導致後續計算報錯的地方）
+        # 2. 核心修正：處理 MultiIndex 欄位 (yfinance 0.2.40+ 的常客)
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.get_level_values(0)
         
-        # 4. 強制轉換欄位名稱，避免大小寫問題
+        # 3. 欄位名稱標準化（首字母大寫，其餘小寫）
         df.columns = [str(c).capitalize() for c in df.columns]
 
-        # 5. 檢查必要的欄位是否存在
-        required_cols = ['Close', 'High', 'Low', 'Open']
-        if not all(col in df.columns for col in required_cols):
-            return {"error": f"數據欄位缺失: {list(df.columns)}"}
+        # 4. 檢查是否有資料
+        if df.empty or len(df) < 30:
+            print(f"❌ {symbol} 資料不足")
+            return {"error": f"{symbol} 數據量不足，無法分析"}
 
-        print(f"DEBUG: {symbol} 數據下載成功，準備進入計算階段...")
-
-        # --- 以下是你的指標計算邏輯 ---
-        # ⚠️ 注意：在計算 RSI/CCI 前，務必移除 NaN
+        # --- 這裡是你原本的指標計算 (CCI/RSI 等) ---
+        # 確保在計算前先 dropna
         df = df.dropna()
-        
-        # ... (計算邏輯) ...
 
-        print(f"DEBUG: {symbol} 分析與繪圖完成")
+        # ... (你的繪圖邏輯) ...
+        
+        # 5. 【關鍵】發送前重置圖片指標
+        buf = io.BytesIO()
+        # plt.savefig(buf, format='png') # 假設你用 matplotlib
+        buf.seek(0)
+
         return {
-            "plot": buf,  # 你的圖片 buffer
-            "score": score,
-            "action": action
+            "plot": buf,
+            "score": "80", # 這裡放你的計算結果
+            "action": "保持觀察" 
         }
 
     except Exception as e:
-        print(f"❌ 程式內部崩潰: {str(e)}")
-        return {"error": f"分析過程出錯: {str(e)}"}
-
+        # 💡 這行會在 GitHub 日誌印出具體哪裡錯了
+        print(f"💥 {symbol} 分析過程發生崩潰: {str(e)}")
+        return {"error": f"程式內部錯誤: {str(e)}"}
         # ... 其餘計算邏輯 ...
         
 
