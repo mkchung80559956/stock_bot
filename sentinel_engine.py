@@ -1,18 +1,20 @@
 import os
 import requests
 import pandas as pd
+import numpy as np  # 👈 必加，否則 CCI/ATR 會崩潰
 import io
 import matplotlib.pyplot as plt
+import mplfinance as mpf  # 👈 必加，否則繪圖會崩潰
+from datetime import datetime, timedelta # 👈 必加，計算 entry_window 用
 
 def get_pro_analysis(symbol):
     print(f"🔍 DEBUG: 開始處理 {symbol}")
     token = os.getenv("FINMIND_TOKEN")
     
-    # 1. 處理代號：FinMind 台股只需要數字 (2330.TW -> 2330)
+    # FinMind 台股只需要數字
     stock_id = symbol.replace(".TW", "").replace(".tw", "")
     
     try:
-        # 2. 呼叫 FinMind API
         url = "https://api.finmindtrade.com/api/v4/data"
         params = {
             "dataset": "TaiwanStockPrice",
@@ -21,33 +23,22 @@ def get_pro_analysis(symbol):
             "token": token,
         }
         
-        print(f"📡 DEBUG: 正在請求 FinMind API...")
         res = requests.get(url, params=params, timeout=15)
         data = res.json()
         
         if data.get("msg") != "success":
-            print(f"❌ DEBUG: API 回傳失敗: {data.get('msg')}")
             return {"error": f"API 錯誤: {data.get('msg')}"}
             
-        # 3. 轉換為 DataFrame
         df = pd.DataFrame(data["data"])
         if df.empty:
-            print(f"⚠️ DEBUG: {symbol} 沒抓到資料")
             return {"error": "找不到股票數據"}
 
-        # 4. 欄位轉換（必須符合你原本指標計算的名稱）
         df = df.rename(columns={
-            "date": "Date",
-            "open": "Open",
-            "max": "High",
-            "min": "Low",
-            "close": "Close",
-            "trading_volume": "Volume"
+            "date": "Date", "open": "Open", "max": "High",
+            "min": "Low", "close": "Close", "trading_volume": "Volume"
         })
         df["Date"] = pd.to_datetime(df["Date"])
         df.set_index("Date", inplace=True)
-        
-        print(f"✅ DEBUG: 數據轉換成功，共 {len(df)} 筆資料")
        
 
         # 1. CCI 計算 (對標台股軟體公式)
