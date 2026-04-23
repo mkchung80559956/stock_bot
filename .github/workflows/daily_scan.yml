@@ -25,4 +25,5 @@ jobs:
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }} # 👈 關鍵！
         run: python main.py # 👈 確保你的 main.py 裡有執行分析的邏輯
