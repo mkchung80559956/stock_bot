@@ -2,8 +2,6 @@ __pycache__/
 *.png
 .env
 
-.env
-__pycache__/
 *.log
 venv/
 .DS_Store
