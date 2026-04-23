@@ -14,16 +14,30 @@ import pandas as pd
 
 def get_pro_analysis(symbol):
     try:
-        # 1. 核心修復：使用 auto_adjust=True 並處理最近 yfinance 的結構變化
-        df = yf.download(symbol, period="2y", interval="1d", progress=False, auto_adjust=True)
+        # 1. 核心修復：使用 Ticker 對象下載，比直接 yf.download 穩定
+        ticker = yf.Ticker(symbol)
+        
+        # 2. 強制獲取 2 年資料
+        df = ticker.history(period="2y", interval="1d", auto_adjust=True)
 
-        # 2. 【最重要】處理 MultiIndex 欄位問題 (這是導致抓不到 Close 的主因)
+        # 3. 如果 df 為空，可能是台股代號問題，嘗試自動修正
+        if df.empty:
+            if ".TW" not in symbol.upper() and symbol.isdigit():
+                return get_pro_analysis(f"{symbol}.TW")
+            return {"error": f"數據抓取失敗：{symbol}"}
+
+        # 4. 處理 yfinance 可能產生的多重索引問題
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.get_level_values(0)
-            
-        # 3. 欄位名稱標準化
+        
+        # 5. 確保欄位名稱首字母大寫 (Close, Open, High, Low)
         df.columns = [str(c).title() for c in df.columns]
 
+        # --- 這裡開始你的指標計算 ---
+        # 範例：df['RSI'] = ... 
+        
+        # 6. 【最重要】返回前確保 plot 的指針在開頭
+        # result['plot'].seek(0)
         # 如果 df 是空的，代表真的沒抓到
         if df.empty or len(df) < 10:
             return {"error": f"Yahoo 伺服器目前無法提供 {symbol} 的數據"}
