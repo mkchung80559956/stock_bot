@@ -1,5 +1,5 @@
 pandas
-yfinance
+yfinance --upgrade
 python-telegram-bot
 numpy
 matplotlib
