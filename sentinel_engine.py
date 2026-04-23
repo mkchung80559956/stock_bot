@@ -11,7 +11,13 @@ import io
 
 def get_pro_analysis(symbol):
     try:
-        # 抓取 2 年數據
+        ticker = yf.Ticker(symbol)
+        df = ticker.history(period='1y', interval='1d') 
+        
+        if df.empty:
+            return {"error": "No data found"}
+
+# 抓取 2 年數據
         df = yf.download(symbol, period="2y", interval="1d", progress=False)
         if df.empty or len(df) < 250:
             return {"error": f"代號 `{symbol}` 數據不足（需至少 250 日數據）。"}
