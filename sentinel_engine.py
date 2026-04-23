@@ -11,16 +11,21 @@ import io
 
 def get_pro_analysis(symbol):
     try:
-        ticker = yf.Ticker(symbol)
-        df = ticker.history(period='1y', interval='1d') 
-        
-        if df.empty:
-            return {"error": "No data found"}
-
-# 抓取 2 年數據
+        # 直接抓取數據，並確保索引格式正確
         df = yf.download(symbol, period="2y", interval="1d", progress=False)
-        if df.empty or len(df) < 250:
-            return {"error": f"代號 `{symbol}` 數據不足（需至少 250 日數據）。"}
+        
+        # 關鍵修正：如果 yfinance 返回的是多重索引，將其扁平化
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.get_level_values(0)
+            
+        if df.empty or len(df) < 200: # EMA200 至少需要 200 根 K 線
+            return {"error": f"代號 `{symbol}` 數據不足或抓取失敗。"}
+
+        # 確保索引是日期格式
+        df.index = pd.to_datetime(df.index)
+        
+        # --- 以下繼續你的指標精算 ---
+
 
         # --- A. 指標精算 (原生 Pandas 指令) ---
         # 1. CCI 計算 (對標台股軟體公式)
