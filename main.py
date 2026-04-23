@@ -1,73 +1,59 @@
 import os
-import sys
 import asyncio
-from datetime import datetime
-from telegram.ext import ApplicationBuilder, MessageHandler, filters
-from sentinel_engine import get_pro_analysis 
+from telegram import Update
+from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
+from sentinel_engine import get_pro_analysis
 
-# 1. 全域變數定義
+# --- 讀取環境變數 ---
 TOKEN = os.getenv("TELEGRAM_TOKEN")
+# 支援多 ID 格式： "123,456,789"
 RAW_IDS = os.getenv("TELEGRAM_CHAT_ID", "")
-WATCHLIST = [s.strip() for s in os.getenv("WATCHLIST", "2330.TW").split(",") if s.strip()]
+ALLOWED_IDS = [id.strip() for id in RAW_IDS.split(",") if id.strip()]
 
-USER_MAP = {item.split(":")[0].strip(): item.split(":")[1].strip() for item in RAW_IDS.split(",") if ":" in item}
-ALLOWED_IDS = list(USER_MAP.keys())
-
-# --- 函數定義 ---
-
-async def handle_message(update, context):
-    # 這裡保留你原本處理單次查詢的邏輯
-    pass
-
-async def auto_scan():
-    from telegram import Bot
-    if not TOKEN: 
-        print("❌ 找不到 TOKEN，停止掃描")
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # 權限檢查：檢查發話者的 ID 是否在白名單中
+    current_chat_id = str(update.effective_chat.id)
+    
+    if ALLOWED_IDS and (current_chat_id not in ALLOWED_IDS):
+        await update.message.reply_text("⛔ 您不在授權名單中，無法使用此機器人。")
         return
-    
-    bot = Bot(TOKEN)
-    now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
-    
-    # --- 🛠️ 核心測試：啟動通知 (加在這裡) ---
-    for cid in ALLOWED_IDS:
-        try:
-            # 使用 int(cid) 確保 ID 格式正確
-            await bot.send_message(chat_id=int(cid), text=f"🔍 Sentinel 掃描任務已啟動...\n⏰ 台灣時間：{now_str}")
-            print(f"✅ 已發送啟動通知給 {cid}")
-        except Exception as e:
-            print(f"❌ 無法發送通知給 {cid}，錯誤原因: {e}")
 
-    # --- 股票掃描邏輯 ---
-    for s in WATCHLIST:
-        print(f"🔄 正在分析 {s}...")
-        data = get_pro_analysis(s)
+    raw_text = update.message.text.strip().upper()
+    # 支援代碼補齊
+    symbol = f"{raw_text}.TW" if raw_text.isdigit() else raw_text
+    
+    await update.message.reply_text(f"🔍 正在為您進行 Sentinel 量價分析：`{symbol}`...")
+    
+    data = get_pro_analysis(symbol)
+    if data:
+        msg = (
+            f"🛡️ *Sentinel Pro 分析報告* ({symbol})\n"
+            f"⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n"
+            f"💰 現價：`{data['price']}`\n"
+            f"📊 評分：`{data['score']}/7` ({data['trend']})\n"
+            f"🚀 訊號：{data['cci_sig']}\n"
+            f"🚨 風險：{data['warning'] if data['warning'] else '✅ 正常'}\n"
+            f"⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n"
+            f"🛡️ 停損：`{data['stop_loss']}`\n"
+            f"🎯 目標：`{data['target']}`"
+        )
+        await update.message.reply_text(msg, parse_mode='Markdown')
         
-        # 💡 除錯建議：暫時把 >= 5 改成 >= 0，確保圖片一定會發送
-        if "error" not in data and int(data['score'][0]) >= 0: 
-            for cid in ALLOWED_IDS:
-                try:
-                    await bot.send_photo(
-                        chat_id=int(cid), 
-                        photo=data['plot'], 
-                        caption=f"📊 {s} 分析報告\n🎯 動作建議：{data['action']}\n⭐️ 綜合評分：{data['score'][0]}"
-                    )
-                    print(f"✅ 圖表發送成功: {s}")
-                except Exception as e:
-                    print(f"❌ 圖表發送失敗 {s}: {e}")
+        # 【進階】如果有其他管理員，可以在有人查詢時通知管理員 (選配功能)
+        # for admin_id in ALLOWED_IDS:
+        #     if admin_id != current_chat_id:
+        #         await context.bot.send_message(chat_id=admin_id, text=f"🔔 授權用戶 {current_chat_id} 查詢了 {symbol}")
+                
+    else:
+        await update.message.reply_text("❌ 數據抓取失敗。請確保輸入正確代碼 (如: 2330 或 2603.TW)")
 
-# --- 執行入口 ---
 if __name__ == '__main__':
     if not TOKEN:
-        print("❌ 錯誤：環境變數 TELEGRAM_TOKEN 未設定")
-        sys.exit(1)
-
+        print("錯誤：找不到 TELEGRAM_TOKEN 環境變數！")
+        exit(1)
+        
     app = ApplicationBuilder().token(TOKEN).build()
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
-
-    if os.getenv("GITHUB_ACTIONS") == "true":
-        print("🚀 GitHub Actions 模式：執行一次性掃描...")
-        asyncio.run(auto_scan()) 
-        print("✅ 任務結束")
-    else:
-        print("✅ 常駐模式：啟動監聽中...")
-        app.run_polling()
+    
+    print(f"Sentinel Bot 已啟動。目前授權 ID 數量：{len(ALLOWED_IDS)}")
+    app.run_polling()
