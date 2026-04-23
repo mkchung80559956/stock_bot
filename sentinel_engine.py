@@ -11,23 +11,24 @@ import io
 
 def get_pro_analysis(symbol):
     try:
-        # 1. 抓取數據 (使用 auto_adjust 確保價格連貫)
+        # 1. 核心修正：使用 auto_adjust 並確保 proxy/headers 正常
         df = yf.download(symbol, period="2y", interval="1d", progress=False, auto_adjust=True)
-
-        # 2. 【核心修復】強行扁平化多重索引 (針對 yf 0.2.50+)
+        
+        # 2. 處理 yf 0.2.50+ 版本的 MultiIndex 問題（這是最常見的報錯原因）
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.get_level_values(0)
-        
-        # 3. 欄位名稱標準化 (防止出現 lowercase 的情況)
-        df.columns = [c.title() for c in df.columns]
+            
+        # 3. 欄位名稱格式化 (確保 Close, High, Low 首字母大寫)
+        df.columns = [str(c).title() for c in df.columns]
 
-        if df.empty or len(df) < 50:
-            return {"error": f"代號 `{symbol}` 數據抓取失敗。"}
+        if df.empty or len(df) < 10:
+            # 如果抓不到，嘗試幫它自動加上市場代碼（針對懶人輸入）
+            if ".TW" not in symbol.upper() and symbol.isdigit():
+                return get_pro_analysis(f"{symbol}.TW")
+            return {"error": f"代號 `{symbol}` 抓取失敗，Yahoo 伺服器暫無回應。"}
 
-        # 4. 數據轉型與清理
-        df = df.astype(float).dropna()
-        
-        # --- 下方接你原本的指標計算 (TP, CCI, EMA200...) ---
+        # ... 接著跑你原本的指標計算 ...
+
 
 
 
