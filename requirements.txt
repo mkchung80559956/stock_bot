@@ -1,5 +1,5 @@
 pandas
-yfinance --upgrade
+yfinance>=0.2.40
 python-telegram-bot
 numpy
 matplotlib
