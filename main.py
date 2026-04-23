@@ -98,7 +98,7 @@ if __name__ == '__main__':
     if os.getenv("GITHUB_ACTIONS") == "true":
         print("🚀 偵測到 GitHub 環境：執行一次性掃描任務...")
         asyncio.run(auto_scan())
-        print("✅ 任務結束，程式退出。")
+        
     else:
         print("✅ 偵測到常駐環境：啟動 Polling 監聽...")
         app.run_polling()
