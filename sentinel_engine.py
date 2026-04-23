@@ -1,6 +1,7 @@
 import os
 import yfinance as yf
 import pandas as pd
+import time
 import numpy as np
 import matplotlib
 matplotlib.use('Agg') # 👈 關鍵：防止雲端環境報錯
@@ -13,34 +14,47 @@ import yfinance as yf
 import pandas as pd
 
 def get_pro_analysis(symbol):
+    print(f"DEBUG: 開始下載 {symbol}...")
     try:
-        # 1. 核心修復：使用 Ticker 對象下載，比直接 yf.download 穩定
+        # 1. 使用 Ticker 下載，並設定較短的超時，避免卡死
         ticker = yf.Ticker(symbol)
-        
-        # 2. 強制獲取 2 年資料
         df = ticker.history(period="2y", interval="1d", auto_adjust=True)
 
-        # 3. 如果 df 為空，可能是台股代號問題，嘗試自動修正
-        if df.empty:
-            if ".TW" not in symbol.upper() and symbol.isdigit():
-                return get_pro_analysis(f"{symbol}.TW")
-            return {"error": f"數據抓取失敗：{symbol}"}
+        # 2. 檢查是否真的有拿到資料
+        if df is None or df.empty or len(df) < 20:
+            print(f"DEBUG: {symbol} 數據為空或長度不足")
+            return {"error": f"Yahoo 暫時無法提供 {symbol} 的數據，請稍後再試"}
 
-        # 4. 處理 yfinance 可能產生的多重索引問題
+        # 3. 處理 yfinance 的多重索引（這是最常導致後續計算報錯的地方）
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.get_level_values(0)
         
-        # 5. 確保欄位名稱首字母大寫 (Close, Open, High, Low)
-        df.columns = [str(c).title() for c in df.columns]
+        # 4. 強制轉換欄位名稱，避免大小寫問題
+        df.columns = [str(c).capitalize() for c in df.columns]
 
-        # --- 這裡開始你的指標計算 ---
-        # 範例：df['RSI'] = ... 
+        # 5. 檢查必要的欄位是否存在
+        required_cols = ['Close', 'High', 'Low', 'Open']
+        if not all(col in df.columns for col in required_cols):
+            return {"error": f"數據欄位缺失: {list(df.columns)}"}
+
+        print(f"DEBUG: {symbol} 數據下載成功，準備進入計算階段...")
+
+        # --- 以下是你的指標計算邏輯 ---
+        # ⚠️ 注意：在計算 RSI/CCI 前，務必移除 NaN
+        df = df.dropna()
         
-        # 6. 【最重要】返回前確保 plot 的指針在開頭
-        # result['plot'].seek(0)
-        # 如果 df 是空的，代表真的沒抓到
-        if df.empty or len(df) < 10:
-            return {"error": f"Yahoo 伺服器目前無法提供 {symbol} 的數據"}
+        # ... (計算邏輯) ...
+
+        print(f"DEBUG: {symbol} 分析與繪圖完成")
+        return {
+            "plot": buf,  # 你的圖片 buffer
+            "score": score,
+            "action": action
+        }
+
+    except Exception as e:
+        print(f"❌ 程式內部崩潰: {str(e)}")
+        return {"error": f"分析過程出錯: {str(e)}"}
 
         # ... 其餘計算邏輯 ...
         
