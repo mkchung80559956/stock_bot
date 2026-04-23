@@ -11,23 +11,27 @@ import io
 
 def get_pro_analysis(symbol):
     try:
-        # 直接抓取數據，並確保索引格式正確
+        # 1. 直接抓取數據
         df = yf.download(symbol, period="2y", interval="1d", progress=False)
         
-        # 關鍵修正：如果 yfinance 返回的是多重索引，將其扁平化
+        # 2. 【核心修復】處理 yfinance 的多重索引 Bug
+        # 確保 columns 只有一層 (Close, Open...)，而不是 (Close, 2330.TW)
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.get_level_values(0)
             
-        if df.empty or len(df) < 200: # EMA200 至少需要 200 根 K 線
-            return {"error": f"代號 `{symbol}` 數據不足或抓取失敗。"}
+        # 3. 檢查數據是否真的存在
+        if df.empty or len(df) < 20: # 至少要有數據
+            print(f"DEBUG: {symbol} 資料抓取為空")
+            return {"error": f"代號 `{symbol}` 查無資料，請確認後再試。"}
 
-        # 確保索引是日期格式
-        df.index = pd.to_datetime(df.index)
-        
-        # --- 以下繼續你的指標精算 ---
+        # 4. 數據清理 (移除 NaN)
+        df = df.dropna()
 
+        # 5. 指標計算 (保持你原本的代碼...)
+        # --- A. 指標精算 ---
+        df['TP'] = (df['High'] + df['Low'] + df['Close']) / 3
+        # ... 後面接你原本的計算邏輯 ...
 
-        # --- A. 指標精算 (原生 Pandas 指令) ---
         # 1. CCI 計算 (對標台股軟體公式)
         df['TP'] = (df['High'] + df['Low'] + df['Close']) / 3
         df['sma_tp'] = df['TP'].rolling(14).mean()
