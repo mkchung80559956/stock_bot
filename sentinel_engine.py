@@ -1,38 +1,42 @@
-import yfinance as yf
+import os
 import pandas as pd
-import time
-import random
+import requests
 
 def get_pro_analysis(symbol):
-    df = None
-    # 第一層防護：增加隨機延遲，偽裝成人類
-    time.sleep(random.uniform(2, 5))
+    token = os.getenv("FINMIND_TOKEN")
+    
+    # 處理台股代號格式 (例如把 2330.TW 轉為 2330)
+    stock_id = symbol.replace(".TW", "").replace(".tw", "")
+    
+    url = "https://api.finmindtrade.com/api/v4/data"
+    parameter = {
+        "dataset": "TaiwanStockPrice",
+        "data_id": stock_id,
+        "start_date": "2024-01-01", # 抓取足夠長的時間
+        "token": token,
+    }
     
     try:
-        # 第二層防護：使用 Ticker 並偽裝 Headers
-        dat = yf.Ticker(symbol)
-        # 這裡改用 history 並加入 proxy 或是單純嘗試多次
-        df = dat.history(period="2y", interval="1d", auto_adjust=True)
+        r = requests.get(url, params=parameter)
+        data = r.json()
+        if data["msg"] != "success":
+            return {"error": "FinMind 讀取失敗"}
+            
+        df = pd.DataFrame(data["data"])
+        df = df.rename(columns={
+            "date": "Date",
+            "open": "Open",
+            "max": "High",
+            "min": "Low",
+            "close": "Close",
+            "trading_volume": "Volume"
+        })
+        df.set_index("Date", inplace=True)
         
-        # 第三層防護：處理 MultiIndex 欄位（最近 yf 崩潰的主因）
-        if isinstance(df.columns, pd.MultiIndex):
-            df.columns = df.columns.get_level_values(0)
-        df.columns = [str(c).capitalize() for c in df.columns]
-
-        if df.empty or len(df) < 10:
-            print(f"⚠️ {symbol} 數據為空，嘗試備用方案...")
-            # 這裡可以加入其他的抓取邏輯 (如直接用 download 函數)
-            df = yf.download(symbol, period="2y", progress=False, auto_adjust=True)
-
-        if df.empty:
-            return {"error": "Yahoo 暫時封鎖了連線，請過一陣子再試"}
-
-        # --- 計算與繪圖邏輯 ---
-        # ... 原本的代碼 ...
-
+        # 💡 計算邏輯與繪圖邏輯保持不變...
+        
     except Exception as e:
-        print(f"❌ 嚴重錯誤: {e}")
-        return {"error": str(e)}
+        return {"error": f"數據源錯誤: {str(e)}"}
        
 
         # 1. CCI 計算 (對標台股軟體公式)
